@@ -1,0 +1,28 @@
+{
+  "short_name": "FinanceTracker",
+  "name": "Personal Finance Tracker",
+  "description": "Sleek, secure, and offline-capable Personal Finance Tracker app.",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#4F46E5",
+  "background_color": "#0B0F19"
+}
