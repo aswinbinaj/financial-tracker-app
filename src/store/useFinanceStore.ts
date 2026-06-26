@@ -351,6 +351,7 @@ export const useFinanceStore = create<FinanceState>()(
             .single();
 
           const userProfile: UserProfile = {
+            id: user.id,
             name: profile?.name || user.user_metadata?.name || 'User',
             email: profile?.email || user.email || '',
           };
@@ -518,13 +519,13 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       updateProfile: async (name: string, email: string, avatarUrl?: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         set((state) => ({
           auth: {
             ...state.auth,
-            user: { name, email, avatarUrl },
+            user: { id: user.id, name, email, avatarUrl },
           },
         }));
 
@@ -542,7 +543,7 @@ export const useFinanceStore = create<FinanceState>()(
 
       // Transaction Actions
       addTransaction: async (newTx: Omit<Transaction, 'id'>) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         const tempId = `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -605,7 +606,7 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       editTransaction: async (id: string, updatedFields: Partial<Transaction>) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         const oldTx = get().transactions.find(t => t.id === id);
@@ -661,7 +662,7 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       deleteTransaction: async (id: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         const oldTx = get().transactions.find(t => t.id === id);
@@ -706,7 +707,7 @@ export const useFinanceStore = create<FinanceState>()(
 
       // Budget Allocations
       setMonthlyBudget: async (month: string, totalIncome: number, allocations: CategoryAllocation[]) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         const totalAllocated = allocations.reduce((sum, item) => sum + item.allocatedAmount, 0);
@@ -776,7 +777,7 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       updateBudget: async (limit: number) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         const currentMonth = new Date().toISOString().slice(0, 7);
@@ -837,7 +838,7 @@ export const useFinanceStore = create<FinanceState>()(
 
       // Emergency Fund
       updateEmergencyFund: async (targetAmount: number, currentBalance: number, monthlyContribution: number) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         set(() => ({
@@ -872,7 +873,7 @@ export const useFinanceStore = create<FinanceState>()(
         );
         if (exists) return false;
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return false;
 
         set((state) => ({
@@ -893,7 +894,7 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       deleteCustomCategory: async (name: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
         if (!user) return;
 
         set((state) => ({
@@ -924,7 +925,7 @@ export const useFinanceStore = create<FinanceState>()(
         }));
 
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const user = get().auth.user;
           if (user) {
             await supabase.from('profiles').update({ dark_mode: newMode }).eq('id', user.id);
           }
@@ -942,7 +943,7 @@ export const useFinanceStore = create<FinanceState>()(
         }));
 
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const user = get().auth.user;
           if (user) {
             await supabase.from('profiles').update({ currency }).eq('id', user.id);
           }
@@ -979,7 +980,7 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       resetAllData: async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = get().auth.user;
 
         set((state) => ({
           transactions: [],
