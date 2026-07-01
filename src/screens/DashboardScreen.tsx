@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Platform } from 'react-native';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useTheme } from '../hooks/useTheme';
@@ -14,19 +14,50 @@ export const DashboardScreen = ({ navigation }: any) => {
   
   const transactions = useFinanceStore((state) => state.transactions);
   const budget = useFinanceStore((state) => state.budget);
+  const monthlyBudgets = useFinanceStore((state) => state.monthlyBudgets);
   const currency = useFinanceStore((state) => state.settings.currency);
   const user = useFinanceStore((state) => state.auth.user);
 
+  // Month navigation state
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date());
+  const selectedMonthStr = selectedMonth.toISOString().slice(0, 7); // YYYY-MM
+
+  const handlePrevMonth = () => {
+    setSelectedMonth((prev) => {
+      const next = new Date(prev);
+      next.setMonth(next.getMonth() - 1);
+      return next;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setSelectedMonth((prev) => {
+      const next = new Date(prev);
+      next.setMonth(next.getMonth() + 1);
+      return next;
+    });
+  };
+
+  const formatSelectedMonth = (date: Date) => {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
   // Computations
-  const totals = getTotals(transactions);
-  const monthly = getMonthlyTotals(transactions);
-  const budgetLimit = budget.limit;
+  const totals = getTotals(transactions); // All-time totals (used for Total Savings)
+  const monthly = getMonthlyTotals(transactions, selectedMonthStr); // Selected month's totals
+  
+  // Find budget limit for selected month
+  const selectedBudget = monthlyBudgets.find((b) => b.month === selectedMonthStr);
+  const budgetLimit = selectedBudget 
+    ? selectedBudget.totalIncome 
+    : (selectedMonthStr === new Date().toISOString().slice(0, 7) ? budget.limit : 0);
   
   const budgetUsagePercent = budgetLimit > 0 ? (monthly.expense / budgetLimit) * 100 : 0;
-  const showBudgetWarning = monthly.expense > budgetLimit * 0.8;
+  const showBudgetWarning = budgetLimit > 0 && monthly.expense > budgetLimit * 0.8;
 
-  // Top 5 transactions
-  const recentTransactions = transactions.slice(0, 5);
+  // Filter transactions by selected month (showing top 5)
+  const monthlyTransactions = transactions.filter((t) => t.date.slice(0, 7) === selectedMonthStr);
+  const recentTransactions = monthlyTransactions.slice(0, 5);
 
   const getInitials = (name: string) => {
     return name
@@ -61,11 +92,45 @@ export const DashboardScreen = ({ navigation }: any) => {
       </View>
 
       <ScrollView contentContainerStyle={[styles.scrollContainer, { paddingBottom: 110 }]} showsVerticalScrollIndicator={false}>
+        
+        {/* Month Navigation */}
+        <FadeInView delay={20} duration={350}>
+          <View style={[styles.monthNavContainer, { paddingHorizontal: spacing.md }]}>
+            <TouchableOpacity 
+              activeOpacity={0.7} 
+              onPress={handlePrevMonth} 
+              style={[styles.monthNavButton, { borderColor: colors.border, backgroundColor: colors.cardBg }]}
+            >
+              <Ionicons name="chevron-back" size={16} color={colors.text} />
+            </TouchableOpacity>
+            
+            <View style={styles.monthLabelContainer}>
+              <Text style={[styles.monthNavText, { color: colors.text }]}>{formatSelectedMonth(selectedMonth)}</Text>
+              {selectedMonthStr !== new Date().toISOString().slice(0, 7) && (
+                <TouchableOpacity 
+                  onPress={() => setSelectedMonth(new Date())}
+                  style={[styles.todayBadge, { backgroundColor: colors.primary + '15' }]}
+                >
+                  <Text style={[styles.todayBadgeText, { color: colors.primary }]}>Back to Current</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity 
+              activeOpacity={0.7} 
+              onPress={handleNextMonth} 
+              style={[styles.monthNavButton, { borderColor: colors.border, backgroundColor: colors.cardBg }]}
+            >
+              <Ionicons name="chevron-forward" size={16} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </FadeInView>
+
         {/* Sleek Balance Card */}
         <FadeInView delay={50} duration={400}>
           <Card style={styles.balanceCard}>
-            <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Total Balance</Text>
-            <Text style={[styles.balanceValue, { color: colors.text }]}>{formatCurrency(totals.balance, currency)}</Text>
+            <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Balance Remaining</Text>
+            <Text style={[styles.balanceValue, { color: colors.text }]}>{formatCurrency(monthly.balance, currency)}</Text>
             
             <View style={[styles.balanceDivider, { backgroundColor: colors.border }]} />
 
@@ -77,7 +142,7 @@ export const DashboardScreen = ({ navigation }: any) => {
                   <Text style={[styles.balanceItemLabel, { color: colors.textSecondary }]}>Income</Text>
                 </View>
                 <Text style={[styles.balanceItemValue, { color: colors.success }]}>
-                  {formatCurrency(totals.income, currency)}
+                  {formatCurrency(monthly.income, currency)}
                 </Text>
               </View>
 
@@ -91,11 +156,36 @@ export const DashboardScreen = ({ navigation }: any) => {
                   <Text style={[styles.balanceItemLabel, { color: colors.textSecondary }]}>Expenses</Text>
                 </View>
                 <Text style={[styles.balanceItemValue, { color: colors.text }]}>
-                  {formatCurrency(totals.expense, currency)}
+                  {formatCurrency(monthly.expense, currency)}
                 </Text>
               </View>
             </View>
           </Card>
+        </FadeInView>
+
+        {/* Total Savings Card */}
+        <FadeInView delay={100} duration={400}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('TransactionsTab', { category: 'Savings' })}
+            style={[styles.savingsCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+          >
+            <View style={styles.savingsLeft}>
+              <View style={[styles.savingsIconContainer, { backgroundColor: '#0EA5E9' + '15' }]}>
+                <Ionicons name={"safe-outline" as any} size={20} color="#0EA5E9" />
+              </View>
+              <View style={styles.savingsDetails}>
+                <Text style={[styles.savingsLabel, { color: colors.textSecondary }]}>Total Savings</Text>
+                <Text style={[styles.savingsValue, { color: colors.text }]}>
+                  {formatCurrency(totals.savings, currency)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.savingsRight}>
+              <Text style={[styles.savingsActionText, { color: colors.primary }]}>View details</Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.primary} style={{ marginLeft: 2 }} />
+            </View>
+          </TouchableOpacity>
         </FadeInView>
 
         {/* Budget Alert Banner */}
@@ -475,5 +565,82 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 99,
+  },
+  monthNavContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: scaleSpacing(16),
+    marginBottom: scaleSpacing(4),
+    marginTop: scaleSpacing(4),
+  },
+  monthNavButton: {
+    width: scaleSpacing(34),
+    height: scaleSpacing(34),
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthLabelContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthNavText: {
+    fontSize: scaleFont(15),
+    fontWeight: '700',
+  },
+  todayBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  todayBadgeText: {
+    fontSize: scaleFont(9.5),
+    fontWeight: '700',
+  },
+  savingsCard: {
+    marginHorizontal: scaleSpacing(16),
+    marginBottom: scaleSpacing(16),
+    padding: scaleSpacing(16),
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  savingsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  savingsIconContainer: {
+    width: scaleSpacing(40),
+    height: scaleSpacing(40),
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  savingsDetails: {
+    marginLeft: scaleSpacing(12),
+  },
+  savingsLabel: {
+    fontSize: scaleFont(11),
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  savingsValue: {
+    fontSize: scaleFont(18),
+    fontWeight: '800',
+  },
+  savingsRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  savingsActionText: {
+    fontSize: scaleFont(11),
+    fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, Alert, SafeAreaView, Platform } from 'react-native';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useTheme } from '../hooks/useTheme';
@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { scaleFont, scaleSpacing } from '../constants/theme';
 import { FadeInView } from '../components/FadeInView';
 
-export const TransactionsScreen = ({ navigation }: any) => {
+export const TransactionsScreen = ({ navigation, route }: any) => {
   const { colors, spacing } = useTheme();
   
   const transactions = useFinanceStore((state) => state.transactions);
@@ -22,6 +22,18 @@ export const TransactionsScreen = ({ navigation }: any) => {
   const [selectedType, setSelectedType] = useState<'all' | 'income' | 'expense'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedTimeframe, setSelectedTimeframe] = useState<'all' | 'today' | 'week' | 'month'>('all');
+
+  // Handle parameter-based filtering from other screens (e.g. Dashboard savings card click)
+  useEffect(() => {
+    if (route?.params?.category) {
+      setSelectedCategory(route.params.category);
+      setSelectedType('all');
+      setSearch('');
+      setSelectedTimeframe('all');
+      // Clear the parameter so it does not persist on subsequent visits to the tab
+      navigation.setParams({ category: undefined });
+    }
+  }, [route?.params?.category]);
 
   // Filter lists based on type
   const activeCategories = selectedType === 'all' 
